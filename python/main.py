@@ -269,7 +269,7 @@ def main():
 
     cube = np.stack((quad_f, quad_b, quad_r, quad_l, quad_t, quad_d), axis=0).reshape((-1,3,3))
 
-    teapot = mesh.Mesh.from_file("Utah_teapot_(solid).stl")
+    teapot = mesh.Mesh.from_file("3d_files/Utah_teapot_(solid).stl")
     triangles_original = teapot.points.reshape((-1,3,3))
 
     colors = (np.random.rand(triangles_original.shape[0],3)*255).astype(np.uint8)
