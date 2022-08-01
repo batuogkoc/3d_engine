@@ -12,10 +12,30 @@ delta_ts = deque(maxlen=30)
 prev_time = time.perf_counter()
 image = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
 
+# class Camera():
+#     def __init__(self, height:int, width:int, horizontal_fov:float):
+#         self.__height = height
+#         self.__width = width
+#         self.__horizontal_fov = horizontal_fov
+#         self.position = np.zeros((3,1))
+#         self.orientation = R.from_euler("XYZ", (-m.pi/2, 0, 0)).as_matrix()
+
 # class Scene():
 #     def __init__(self):
-#         self.objects = {}
-#         self.lights = {}
+#         self.__objects = {}
+#         self.__lights = {}
+#         self.__cameras = {}
+    
+#     def get_camera(self, camera_id):
+#         return self.__cameras[camera_id]
+    
+#     def add_camera(self, camera_id, camera:Camera):
+#         self.__cameras[camera_id] = camera
+
+#     def add_object(self, object_id, object:Mesh):
+#         self.__objects
+#     def render_scene(self, camera_id):
+
 
 # class Mesh():
 #     def __init__(self, triangles, colors):
@@ -38,56 +58,23 @@ image = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
 
 
 def smooth_triangle_lighting_parallel(image, triangles, corner_colors):
-    # Specify (x,y) triangle verticesq
-    a, b, c = triangle.astype(int)
-    # Specify colors
-    a_color, b_color, c_color = colors.reshape((3,3))
+    triangle_arrays = np.hstack([np.stack((triangles[:,0], triangles[:,1], triangles[:,2]), axis=2), np.ones((triangles.shape[0],1,3))]).astype(int)
+    x_lefts, y_tops = np.moveaxis(np.min(triangle_arrays[:,0:2], axis=2), 1, 0)
+    x_rights, y_bottoms = np.moveaxis(np.max(triangle_arrays[:,0:2], axis=2), 1, 0) 
+    mask = (x_rights != x_lefts) & (y_tops != y_bottoms)
+    triangle_arrays = triangle_arrays[mask]
+    x_lefts = x_lefts[mask]
+    x_rights = x_rights[mask]
+    y_bottoms = y_bottoms[mask]
+    y_tops = y_tops[mask]
+    print(x_lefts)
+    print(x_rights)
+    def arange(start, stop):
+        return np.arange(start, stop)
 
-    # Make array of vertices
-    # ax bx cx
-    # ay by cy
-    #  1  1  1
-    triArr = np.asarray([a[0],b[0],c[0], a[1],b[1],c[1], 1,1,1]).reshape((3, 3))
-    # Get bounding box of the triangle
-    xleft = min(a[0], b[0], c[0])
-    xright = max(a[0], b[0], c[0])
-    ytop = min(a[1], b[1], c[1])
-    ybottom = max(a[1], b[1], c[1])
-    if xleft == xright or ytop == ybottom:
-        return image
-    # Build np arrays of coordinates of the bounding box
-    xs = range(xleft, xright)
-    ys = range(ytop, ybottom)
-    xv, yv = np.meshgrid(xs, ys)
-    xv = xv.flatten()
-    yv = yv.flatten()
-    
-    # Compute all least-squares /
-    p = np.array([xv, yv, [1] * len(xv)])
-    alphas, betas, gammas = np.linalg.lstsq(triArr, p, rcond=-1)[0]
-    
-    # Apply mask for pixels within the triangle only
-    mask = (alphas > 0) & (betas > 0) & (gammas > 0)
-    alphas_m = alphas[mask]
-    betas_m = betas[mask]
-    gammas_m = gammas[mask]
-    xv_m = xv[mask]
-    yv_m = yv[mask]
-
-    xv_m[xv_m>=WIDTH] = WIDTH-1
-    xv_m[xv_m<0] = 0
-    yv_m[yv_m>=HEIGHT] = HEIGHT-1
-    yv_m[yv_m<0] = 0
-    
-    def mul(a, b) :
-        # Multiply two vectors into a matrix
-        return np.asmatrix(b).T @ np.asmatrix(a)
-    
-    # Compute and assign colors
-    colors = mul(a_color, alphas_m) + mul(b_color, betas_m) + mul(c_color, gammas_m)
-    image[yv_m, xv_m] = colors
-    return image
-
+    paralel_arange = np.frompyfunc(arange, 2, 1)
+    xs = paralel_arange(x_lefts, x_rights)
+    print(xs)
 def smooth_triangle_lighting(image, triangle, colors):
     # Specify (x,y) triangle verticesq
     a, b, c = triangle.astype(int)
@@ -104,6 +91,8 @@ def smooth_triangle_lighting(image, triangle, colors):
     xright = max(a[0], b[0], c[0])
     ytop = min(a[1], b[1], c[1])
     ybottom = max(a[1], b[1], c[1])
+
+
     if xleft == xright or ytop == ybottom:
         return image
     # Build np arrays of coordinates of the bounding box
@@ -180,9 +169,8 @@ def render_triangles(image, triangles, triangle_colors, camera_position, camera_
         triangles = (np.linalg.inv(camera_rotation) @ (triangles.reshape(-1,3).T-camera_position)).T.reshape(-1,3,3)
         triangles[:,:,0] /= triangles[:,:,2]
         triangles[:,:,1] /= triangles[:,:,2]
-        print(triangles)
         triangle_zs = np.max(triangles, axis=1)[:,2]
-        print(triangle_zs)
+
         # triangles = triangles[:,:,0:2]
         triangles *= HEIGHT//2
         triangles[:,:,0] += WIDTH//2
@@ -198,7 +186,7 @@ def render_triangles(image, triangles, triangle_colors, camera_position, camera_
                 smooth_triangle_lighting(image, triangle.reshape((3,2)).astype(int), (colors).astype(np.uint8))
             else:
                 image = cv2.fillPoly(image, (triangle.astype(np.int),), colors[0].tolist())
-
+        smooth_triangle_lighting_parallel(image, triangles[:,:,0:2][order], corner_colors[order])
     else:
         for triangle, color in zip(triangles, triangle_colors):
             vertex_1, vertex_2, vertex_3 = triangle.reshape(-1,3)
@@ -272,7 +260,8 @@ def main():
     teapot = mesh.Mesh.from_file("3d_files/Utah_teapot_(solid).stl")
     triangles_original = teapot.points.reshape((-1,3,3))
 
-    colors = (np.random.rand(triangles_original.shape[0],3)*255).astype(np.uint8)
+    # colors = (np.random.rand(triangles_original.shape[0],3)*255).astype(np.uint8)
+    colors = (np.ones((triangles_original.shape[0],3))*255).astype(np.uint8)
     while True:
         start_time = time.perf_counter()
 
@@ -284,7 +273,6 @@ def main():
         camera_position = np.array([[0,-15,5]]).T
         camera_rotation = R.from_euler("XYZ", (-m.pi/2, 0, 0)).as_matrix()
         image = render_triangles(image, triangles, colors, camera_position, camera_rotation, np.array([[0,-10,5]]).T, global_lighting=False)
-
         # image = render_triangles(image, triangles, np.array([[255,0 ,0], [255,0 ,0], [0,0,255], [0,0,255], [0,255,0], [0,255,0], [255,0,255], [255,0,255], [0,255,255], [0,255,255], [255,255,0], [255,255,0]]), camera_position, camera_rotation, np.array([[0,-5,2]]).T, global_lighting=True)
         # image = cv2.putText(image, f"{1/delta_time:.2f}", (20,20), cv2.FONT_HERSHEY_SIMPLEX, 1, color=(0,255,0), thickness=1, lineType=cv2.LINE_AA)
         cv2.imshow("window", image)
