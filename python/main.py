@@ -161,9 +161,9 @@ def render_triangles(image, triangles, triangle_colors, camera_position, camera_
         v1s_cos_angle = -(np.sum(normals * v1s_distance_to_light, axis=1))/(normal_lengths*v1s_distance_to_light_norm)
         v2s_cos_angle = -(np.sum(normals * v2s_distance_to_light, axis=1))/(normal_lengths*v2s_distance_to_light_norm)
         v3s_cos_angle = -(np.sum(normals * v3s_distance_to_light, axis=1))/(normal_lengths*v3s_distance_to_light_norm)
-        v1s_brightness = np.clip(v1s_cos_angle*(1/(v1s_distance_to_light_norm)), 0, 1) 
-        v2s_brightness = np.clip(v2s_cos_angle*(1/(v2s_distance_to_light_norm)), 0, 1) 
-        v3s_brightness = np.clip(v3s_cos_angle*(1/(v3s_distance_to_light_norm)), 0, 1) 
+        v1s_brightness = np.clip(v1s_cos_angle*(1/(v1s_distance_to_light_norm))*2, 0, 1)
+        v2s_brightness = np.clip(v2s_cos_angle*(1/(v2s_distance_to_light_norm))*2, 0, 1)
+        v3s_brightness = np.clip(v3s_cos_angle*(1/(v3s_distance_to_light_norm))*2, 0, 1)
         
         # triangles = triangles[mask]
         triangles = (np.linalg.inv(camera_rotation) @ (triangles.reshape(-1,3).T-camera_position)).T.reshape(-1,3,3)
@@ -186,7 +186,7 @@ def render_triangles(image, triangles, triangle_colors, camera_position, camera_
                 smooth_triangle_lighting(image, triangle.reshape((3,2)).astype(int), (colors).astype(np.uint8))
             else:
                 image = cv2.fillPoly(image, (triangle.astype(np.int),), colors[0].tolist())
-        smooth_triangle_lighting_parallel(image, triangles[:,:,0:2][order], corner_colors[order])
+        # smooth_triangle_lighting_parallel(image, triangles[:,:,0:2][order], corner_colors[order])
     else:
         for triangle, color in zip(triangles, triangle_colors):
             vertex_1, vertex_2, vertex_3 = triangle.reshape(-1,3)
@@ -260,8 +260,8 @@ def main():
     teapot = mesh.Mesh.from_file("3d_files/Utah_teapot_(solid).stl")
     triangles_original = teapot.points.reshape((-1,3,3))
 
-    # colors = (np.random.rand(triangles_original.shape[0],3)*255).astype(np.uint8)
-    colors = (np.ones((triangles_original.shape[0],3))*255).astype(np.uint8)
+    colors = (np.random.rand(triangles_original.shape[0],3)*255).astype(np.uint8)
+    # colors = (np.ones((triangles_original.shape[0],3))*255).astype(np.uint8)
     while True:
         start_time = time.perf_counter()
 
@@ -272,7 +272,7 @@ def main():
         #triangles = translate_triangles(triangles, np.array([[0,m.sin(time.perf_counter()),0]]).T)
         camera_position = np.array([[0,-15,5]]).T
         camera_rotation = R.from_euler("XYZ", (-m.pi/2, 0, 0)).as_matrix()
-        image = render_triangles(image, triangles, colors, camera_position, camera_rotation, np.array([[0,-10,5]]).T, global_lighting=False)
+        image = render_triangles(image, triangles, colors, camera_position, camera_rotation, np.array([[0,-10,5]]).T, global_lighting=True)
         # image = render_triangles(image, triangles, np.array([[255,0 ,0], [255,0 ,0], [0,0,255], [0,0,255], [0,255,0], [0,255,0], [255,0,255], [255,0,255], [0,255,255], [0,255,255], [255,255,0], [255,255,0]]), camera_position, camera_rotation, np.array([[0,-5,2]]).T, global_lighting=True)
         # image = cv2.putText(image, f"{1/delta_time:.2f}", (20,20), cv2.FONT_HERSHEY_SIMPLEX, 1, color=(0,255,0), thickness=1, lineType=cv2.LINE_AA)
         cv2.imshow("window", image)
