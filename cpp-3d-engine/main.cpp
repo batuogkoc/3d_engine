@@ -177,53 +177,12 @@ int main(int argc, char** argv){
         Eigen::AngleAxisf rotation(time_sec, Eigen::Vector3f::UnitZ());
         mesh.transform(rotation.matrix());
 
-        Eigen::Vector3f camera_position = {0,-16,4};
-        Eigen::Matrix3f camera_orientation;
-        camera_orientation << 1, 0, 0,
+        camera.position = {0,-16,4};
+        camera.orientation << 1, 0, 0,
                               0, 0, 1,
                               0, -1, 0;
-        camera.position = camera_position;
-        camera.orientation = camera_orientation;
+
         render_mesh(image, mesh, camera);
-        // Eigen::Matrix3f camera_orientation_inverse = camera_orientation.transpose();
-        
-        // for(auto triangle_original : mesh.triangles){
-        //     Triangle triangle(triangle_original);
-
-        //     triangle.v[0] = camera_orientation_inverse*(triangle.v[0]-camera_position);
-        //     triangle.v[1] = camera_orientation_inverse*(triangle.v[1]-camera_position);
-        //     triangle.v[2] = camera_orientation_inverse*(triangle.v[2]-camera_position);
-        //     // if(triangle.center().dot(triangle.normal())>=0){
-        //     //     continue;
-        //     // }
-        //     triangle.v[0][0] /= triangle.v[0][2];
-        //     triangle.v[0][1] /= triangle.v[0][2]; 
-
-        //     triangle.v[1][0] /= triangle.v[1][2];
-        //     triangle.v[1][1] /= triangle.v[1][2];
-
-        //     triangle.v[2][0] /= triangle.v[2][2];
-        //     triangle.v[2][1] /= triangle.v[2][2];
-
-        //     float scale_factor = ((float)height)/2.0f/tanf(camera_fov_vertical/2);
-
-        //     triangle.v[0][0] = triangle.v[0][0]*scale_factor + width/2;
-        //     triangle.v[0][1] = triangle.v[0][1]*scale_factor + height/2;
-            
-        //     triangle.v[1][0] = triangle.v[1][0]*scale_factor + width/2;
-        //     triangle.v[1][1] = triangle.v[1][1]*scale_factor + height/2;
-
-        //     triangle.v[2][0] = triangle.v[2][0]*scale_factor + width/2;
-        //     triangle.v[2][1] = triangle.v[2][1]*scale_factor + height/2;
-        //     cv::Point points[] = {cv::Point(triangle.v[0][0], triangle.v[0][1]),
-        //                           cv::Point(triangle.v[1][0], triangle.v[1][1]),
-        //                           cv::Point(triangle.v[2][0], triangle.v[2][1])};
-        //     cv::fillConvexPoly(image, points, 3, triangle.color);
-        //     // std::vector<cv::Point> points = {cv::Point(triangle.v[0][0], triangle.v[0][1]),
-        //     //                            cv::Point(triangle.v[1][0], triangle.v[1][1]),
-        //     //                            cv::Point(triangle.v[2][0], triangle.v[2][1])};
-        //     // cv::fillPoly(image, points, triangle.color);
-        // }
         cv::imshow("Aaa", image);
         int key = cv::pollKey();
         if(key == 'q'){
