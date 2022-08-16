@@ -1,22 +1,23 @@
-#include <cmath>
+#pragma once
 #include "eigen3/Eigen/Dense"
 
 class Camera{
     public:
+        const unsigned int width;
+        const unsigned int height;
+        const float vertical_fov;
+        const float horizontal_fov;
+        const float perspective_coords_scale_factor;
+        
         Eigen::Vector3f position;
         Eigen::Matrix3f orientation;
-        Camera(unsigned int width, unsigned int height, float horizontal_fov){
-            this->__height = height;
-            this->__width = width;
-            this->__optical_plane_distance = ((float)width/2)/sinf(((float)horizontal_fov)/2);
-            this->position = Eigen::Vector3f::Zero();
-            this->orientation = Eigen::Matrix3f::Identity();
-        }
-        add_to_scene()
-
-    private:
-        unsigned int __width;
-        unsigned int __height;
-        
-        float __optical_plane_distance;
+        Camera(unsigned int width, unsigned int height, float vertical_fov, Eigen::Vector3f position = Eigen::Vector3f::Zero(), Eigen::Matrix3f orientation=Eigen::Matrix3f::Identity()):
+            width(width),
+            height(height),
+            vertical_fov(vertical_fov),
+            horizontal_fov(2*atanf(((float)width)/((float)height)*tan(vertical_fov/2))),
+            perspective_coords_scale_factor(((float)height)/2.0f/tanf(vertical_fov/2)),
+            position(position),
+            orientation(orientation)
+        {}
 };
