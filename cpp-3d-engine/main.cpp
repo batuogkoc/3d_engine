@@ -10,7 +10,7 @@
 #include "math.h"
 #include "Plane.hpp"
 
-void draw_triangle(cv::Mat &image, Triangle triangle){
+void draw_triangle(cv::Mat &image, Texture &texture, Triangle triangle){
     Eigen::Matrix2f barycentric_t_matrix = Eigen::Matrix2f();
     barycentric_t_matrix << triangle.v[0][0] - triangle.v[2][0], triangle.v[1][0] - triangle.v[2][0],
                             triangle.v[0][1] - triangle.v[2][1], triangle.v[1][1] - triangle.v[2][1];
@@ -49,15 +49,10 @@ void draw_triangle(cv::Mat &image, Triangle triangle){
             float v1_w = v0_v1_barycentric[1];
             float v2_w = 1-v0_w-v1_w;
 
-            // float z = 1/(v0_w*(1/z0) + v1_w*(1/z1) + v2_w*(1/z2));
-            // float u0_ = 
-
-            image.at<cv::Vec3b>(i,j)[0] = (uint8_t)255*v0_w;
-            image.at<cv::Vec3b>(i,j)[1] = (uint8_t)255*v1_w;
-            image.at<cv::Vec3b>(i,j)[2] = (uint8_t)255*v2_w;
-            // image.at<cv::Vec3b>(i,j)[0] = triangle.color[0];
-            // image.at<cv::Vec3b>(i,j)[1] = triangle.color[1];
-            // image.at<cv::Vec3b>(i,j)[2] = triangle.color[2];
+            image.at<cv::Vec3b>(i,j) = texture.get_pixel(triangle.tex[0]*v0_w + triangle.tex[1]*v1_w + triangle.tex[2]*v2_w);
+            // image.at<cv::Vec3b>(i,j)[0] = (uint8_t)255*v0_w;
+            // image.at<cv::Vec3b>(i,j)[1] = (uint8_t)255*v1_w;
+            // image.at<cv::Vec3b>(i,j)[2] = (uint8_t)255*v2_w;
         }
     }
 
@@ -82,23 +77,11 @@ void draw_triangle(cv::Mat &image, Triangle triangle){
             float v0_w = v0_v1_barycentric[0];
             float v1_w = v0_v1_barycentric[1];
             float v2_w = 1-v0_w-v1_w;
-            // Eigen::Matrix3f mat = Eigen::Matrix3f();
-            // mat<< 1, 1, 1,
-            //     triangle.v[0][0], triangle.v[1][0], triangle.v[2][0],
-            //     triangle.v[0][1], triangle.v[1][1], triangle.v[2][1];
-            // Eigen::Matrix3f mat_inv = mat.inverse();
-            // Eigen::Vector3f r = Eigen::Vector3f();
-            // r << 1, (float)j, (float)i;
-            // Eigen::Vector3f barycentric_coords = mat_inv*r;
-            // float v0_w = barycentric_coords[0];
-            // float v1_w = barycentric_coords[1];
-            // float v2_w = barycentric_coords[2];
-            image.at<cv::Vec3b>(i,j)[0] = (uint8_t)255*v0_w;
-            image.at<cv::Vec3b>(i,j)[1] = (uint8_t)255*v1_w;
-            image.at<cv::Vec3b>(i,j)[2] = (uint8_t)255*v2_w;
-            // image.at<cv::Vec3b>(i,j)[0] = triangle.color[0];
-            // image.at<cv::Vec3b>(i,j)[1] = triangle.color[1];
-            // image.at<cv::Vec3b>(i,j)[2] = triangle.color[2];
+
+            image.at<cv::Vec3b>(i,j) = texture.get_pixel(triangle.tex[0]*v0_w + triangle.tex[1]*v1_w + triangle.tex[2]*v2_w);
+            // image.at<cv::Vec3b>(i,j)[0] = (uint8_t)255*v0_w;
+            // image.at<cv::Vec3b>(i,j)[1] = (uint8_t)255*v1_w;
+            // image.at<cv::Vec3b>(i,j)[2] = (uint8_t)255*v2_w;
         }
     }
 }
@@ -152,7 +135,9 @@ std::vector<Triangle> clip_triangle(Triangle const &triangle, Plane const &plane
         for(int i=0; i<3; i++){
             if(in_points_idx[i] == true){
                 // ret.push_back(Triangle(triangle.v[i], triangle.v[i] + (triangle.v[(i+1)%3]-triangle.v[i])*edge_intersection_ts[i], triangle.v[(i+2)%3] + (triangle.v[(i+3)%3]-triangle.v[(i+2)%3])*edge_intersection_ts[(i+2)%3], triangle.color));
-                ret.push_back(Triangle(triangle.v[i], triangle.v[i] + (triangle.v[(i+1)%3]-triangle.v[i])*edge_intersection_ts[i], triangle.v[(i+2)%3] + (triangle.v[(i+3)%3]-triangle.v[(i+2)%3])*edge_intersection_ts[(i+2)%3], cv::Scalar(0,255,0)));
+                float current_edge_t = edge_intersection_ts[i];
+                float prev_edge_t = edge_intersection_ts[(i+2)%3];
+                ret.push_back(Triangle(triangle.v[i], triangle.v[i] + (triangle.v[(i+1)%3]-triangle.v[i])*current_edge_t, triangle.v[(i+2)%3] + (triangle.v[(i+3)%3]-triangle.v[(i+2)%3])*prev_edge_t, triangle.tex[i], triangle.tex[i]*(1-current_edge_t) + triangle.tex[(i+1)%3]*(current_edge_t), triangle.tex[(i+2)%3]*(1-prev_edge_t) + triangle.tex[i]*prev_edge_t));
                 return ret;
             }
         }
@@ -163,10 +148,13 @@ std::vector<Triangle> clip_triangle(Triangle const &triangle, Plane const &plane
                 int i_minus_1 = (i-1)%3>=0?(i-1)%3:3+(i-1)%3;
                 Eigen::Vector3f intersection_point_0 = (triangle.v[(i+1)%3]-triangle.v[i])*edge_intersection_ts[i] + triangle.v[i];
                 Eigen::Vector3f intersection_point_1 = (triangle.v[(i+2)%3]-triangle.v[(i+1)%3])*edge_intersection_ts[(i+1)%3] + triangle.v[(i+1)%3];
+
+                Eigen::Vector2f intersection_point_0_tex = triangle.tex[i]*(1-edge_intersection_ts[i]) + triangle.tex[(i+1)%3]*(edge_intersection_ts[i]);
+                Eigen::Vector2f intersection_point_1_tex = triangle.tex[(i+1)%3]*(1-edge_intersection_ts[(i+1)%3]) + triangle.tex[(i+2)%3]*(edge_intersection_ts[(i+1)%3]);
                 // ret.push_back(Triangle(triangle.v[i], intersection_point_0, triangle.v[i_minus_1], triangle.color));
                 // ret.push_back(Triangle(triangle.v[i_minus_1], intersection_point_0, intersection_point_1, triangle.color));
-                ret.push_back(Triangle(triangle.v[i], intersection_point_0, triangle.v[i_minus_1], cv::Scalar(255,0,0)));
-                ret.push_back(Triangle(triangle.v[i_minus_1], intersection_point_0, intersection_point_1, cv::Scalar(0,0,255)));
+                ret.push_back(Triangle(triangle.v[i], intersection_point_0, triangle.v[i_minus_1], triangle.tex[i], intersection_point_0_tex, triangle.tex[i_minus_1]));
+                ret.push_back(Triangle(triangle.v[i_minus_1], intersection_point_0, intersection_point_1, triangle.tex[i_minus_1], intersection_point_0_tex, intersection_point_1_tex));
                 return ret;
             }
         }
@@ -213,7 +201,7 @@ void render_mesh(cv::Mat& image, Mesh& mesh, Camera& camera, Eigen::Vector3f lig
         }
 
         float brightness = std::max(0.0f, -triangle.normal().dot(light_direction)/triangle.normal().norm());
-        triangle.color *= brightness;
+        // triangle.color *= brightness;
 
         
         triangle.v[0] = camera_orientation_inverse*(triangle.v[0]-camera.position);
@@ -256,7 +244,7 @@ void render_mesh(cv::Mat& image, Mesh& mesh, Camera& camera, Eigen::Vector3f lig
         //                         cv::Point(triangle.v[2][0], triangle.v[2][1])};
         
         // cv::fillConvexPoly(image, points, 3, triangle.color);
-        draw_triangle(image,triangle);
+        draw_triangle(image, mesh.texture, triangle);
     }
 }
 
@@ -267,7 +255,7 @@ int main(int argc, char** argv){
     // mesh_original.triangles.push_back(Triangle({0,0,0},{1,0,0},{1,0,1}));
 
     // Mesh mesh_original = Mesh(stl_reader::StlMesh<float, unsigned int>("../../../3d_files/Utah_teapot_(solid).stl"), false);
-    Mesh mesh_original = Mesh(stl_reader::StlMesh<float, unsigned int>("../../../3d_files/cat.stl"), false);
+    Mesh mesh_original = Mesh(stl_reader::StlMesh<float, unsigned int>("../../../3d_files/cat.stl"));
     // std::vector<Triangle> triangles = {Triangle({0,0,0}, {1,0,1}, {0,0,1})};
     // Mesh mesh = Mesh();
     // mesh.triangles = triangles;

@@ -7,30 +7,37 @@ class Triangle{
     public:
         Eigen::Vector3f v[3];
         Eigen::Vector2f tex[3];
-        cv::Vec3b color;
-        Triangle(cv::Vec3b color=cv::Vec3b(255,255,255)){
+        Triangle(){
             v[0] = Eigen::Vector3f::Zero();
             v[1] = Eigen::Vector3f::Zero();
             v[2] = Eigen::Vector3f::Zero();
-            this->color = color; 
+            tex[0] = Eigen::Vector2f::Zero();
+            tex[1] = Eigen::Vector2f::Zero();
+            tex[2] = Eigen::Vector2f::Zero();
         } 
-        Triangle(Eigen::Vector3f (&vertices)[3], cv::Vec3b color=cv::Vec3b(255,255,255)){
+        Triangle(Eigen::Vector3f (&vertices)[3], Eigen::Vector2f (&textures)[3]){
             v[0] = vertices[0];
             v[1] = vertices[1];
             v[2] = vertices[2];
-            this->color = color; 
+            tex[0] = textures[0];
+            tex[1] = textures[1];
+            tex[2] = textures[2];
         }
-        Triangle(std::vector<Eigen::Vector3f> vertices, cv::Vec3b color=cv::Vec3b(255,255,255)){
+        Triangle(std::vector<Eigen::Vector3f> vertices, std::vector<Eigen::Vector2f> textures){
             v[0] = vertices[0];
             v[1] = vertices[1];
             v[2] = vertices[2];
-            this->color = color; 
+            tex[0] = textures[0];
+            tex[1] = textures[1];
+            tex[2] = textures[2];
         }
-        Triangle(Eigen::Vector3f vertex0, Eigen::Vector3f vertex1, Eigen::Vector3f vertex2, cv::Vec3b color=cv::Vec3b(255,255,255)){
+        Triangle(Eigen::Vector3f vertex0, Eigen::Vector3f vertex1, Eigen::Vector3f vertex2, Eigen::Vector2f texture0, Eigen::Vector2f texture1, Eigen::Vector2f texture2){
             v[0] = vertex0;
             v[1] = vertex1;
             v[2] = vertex2;
-            this->color = color;
+            tex[0] = texture0;
+            tex[1] = texture1;
+            tex[2] = texture2;
         }
         Eigen::Vector3f edge_0(){
             return this->v[1] - this->v[0];
