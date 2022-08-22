@@ -11,6 +11,18 @@
 #include "Plane.hpp"
 
 void draw_triangle(cv::Mat &image, Triangle triangle){
+    Eigen::Matrix2f barycentric_t_matrix = Eigen::Matrix2f();
+    barycentric_t_matrix << triangle.v[0][0] - triangle.v[2][0], triangle.v[1][0] - triangle.v[2][0],
+                            triangle.v[0][1] - triangle.v[2][1], triangle.v[1][1] - triangle.v[2][1];
+    Eigen::Matrix2f barycentric_t_matrix_inv = barycentric_t_matrix.inverse();
+    Eigen::Vector2f vertex_2 = Eigen::Vector2f();
+    vertex_2 << triangle.v[2][0], triangle.v[2][1];
+    float z0 = triangle.v[0][2];
+    float z1 = triangle.v[1][2];
+    float z2 = triangle.v[2][2];
+    
+
+
     std::sort(triangle.v, triangle.v+3, [](Eigen::Vector3f v1, Eigen::Vector3f v2){
         return v1[1]<v2[1];
     });
@@ -27,22 +39,25 @@ void draw_triangle(cv::Mat &image, Triangle triangle){
         edge_l = temp;
     }
 
-    // for(long i=0; i<(long)triangle.v[1][1]-(long)triangle.v[0][1]; i++){
-
-    //     for(long j=(long)(edge_l[0]*((float)i));j<=(long)(edge_r[0]*((float)i)); j++){
-    //         // std::cout<<i<<" "<<j<<"\n";
-    //         image.at<cv::Vec3b>(i+(long)triangle.v[0][1],j+triangle.v[0][0])[0] = triangle.color[0];
-    //         image.at<cv::Vec3b>(i+(long)triangle.v[0][1],j+triangle.v[0][0])[1] = triangle.color[1];
-    //         image.at<cv::Vec3b>(i+(long)triangle.v[0][1],j+triangle.v[0][0])[2] = triangle.color[2];
-    //     }
-    // }
 
     for(size_t i=std::max((size_t)0, (size_t)triangle.v[0][1]+1); i<=std::min((size_t)image.rows-1, (size_t)triangle.v[1][1]); i++){
         for(size_t j=std::max((size_t)0, (size_t)(triangle.v[0][0]+edge_l[0]*((float)i-triangle.v[0][1]))+1);j<=std::min((size_t)image.cols-1,(size_t)(triangle.v[0][0]+edge_r[0]*((float)i-triangle.v[0][1]))); j++){
-            // std::cout<<i<<" "<<j<<"\n";
-            image.at<cv::Vec3b>(i,j)[0] = triangle.color[0];
-            image.at<cv::Vec3b>(i,j)[1] = triangle.color[1];
-            image.at<cv::Vec3b>(i,j)[2] = triangle.color[2];
+            Eigen::Vector2f r = Eigen::Vector2f();
+            r << (float)j,(float)i;
+            Eigen::Vector2f v0_v1_barycentric = barycentric_t_matrix_inv*(r-vertex_2);
+            float v0_w = v0_v1_barycentric[0];
+            float v1_w = v0_v1_barycentric[1];
+            float v2_w = 1-v0_w-v1_w;
+
+            // float z = 1/(v0_w*(1/z0) + v1_w*(1/z1) + v2_w*(1/z2));
+            // float u0_ = 
+
+            image.at<cv::Vec3b>(i,j)[0] = (uint8_t)255*v0_w;
+            image.at<cv::Vec3b>(i,j)[1] = (uint8_t)255*v1_w;
+            image.at<cv::Vec3b>(i,j)[2] = (uint8_t)255*v2_w;
+            // image.at<cv::Vec3b>(i,j)[0] = triangle.color[0];
+            // image.at<cv::Vec3b>(i,j)[1] = triangle.color[1];
+            // image.at<cv::Vec3b>(i,j)[2] = triangle.color[2];
         }
     }
 
@@ -61,10 +76,29 @@ void draw_triangle(cv::Mat &image, Triangle triangle){
 
     for(size_t i=std::min((size_t)image.rows-1,(size_t)triangle.v[2][1]); i>std::max((size_t)0, (size_t)triangle.v[1][1]); i--){
         for(size_t j=std::max((size_t)0,(size_t)(triangle.v[2][0]+edge_l[0]*(triangle.v[2][1]-(float)i))+1);j<=std::min((size_t)image.cols-1,(size_t)(triangle.v[2][0]+edge_r[0]*(triangle.v[2][1]-(float)i))); j++){
-            // std::cout<<i<<" "<<j<<"\n";
-            image.at<cv::Vec3b>(i,j)[0] = triangle.color[0];
-            image.at<cv::Vec3b>(i,j)[1] = triangle.color[1];
-            image.at<cv::Vec3b>(i,j)[2] = triangle.color[2];
+            Eigen::Vector2f r = Eigen::Vector2f();
+            r << (float)j,(float)i;
+            Eigen::Vector2f v0_v1_barycentric = barycentric_t_matrix_inv*(r-vertex_2);
+            float v0_w = v0_v1_barycentric[0];
+            float v1_w = v0_v1_barycentric[1];
+            float v2_w = 1-v0_w-v1_w;
+            // Eigen::Matrix3f mat = Eigen::Matrix3f();
+            // mat<< 1, 1, 1,
+            //     triangle.v[0][0], triangle.v[1][0], triangle.v[2][0],
+            //     triangle.v[0][1], triangle.v[1][1], triangle.v[2][1];
+            // Eigen::Matrix3f mat_inv = mat.inverse();
+            // Eigen::Vector3f r = Eigen::Vector3f();
+            // r << 1, (float)j, (float)i;
+            // Eigen::Vector3f barycentric_coords = mat_inv*r;
+            // float v0_w = barycentric_coords[0];
+            // float v1_w = barycentric_coords[1];
+            // float v2_w = barycentric_coords[2];
+            image.at<cv::Vec3b>(i,j)[0] = (uint8_t)255*v0_w;
+            image.at<cv::Vec3b>(i,j)[1] = (uint8_t)255*v1_w;
+            image.at<cv::Vec3b>(i,j)[2] = (uint8_t)255*v2_w;
+            // image.at<cv::Vec3b>(i,j)[0] = triangle.color[0];
+            // image.at<cv::Vec3b>(i,j)[1] = triangle.color[1];
+            // image.at<cv::Vec3b>(i,j)[2] = triangle.color[2];
         }
     }
 }
@@ -232,7 +266,7 @@ int main(int argc, char** argv){
     // mesh_original.triangles.push_back(Triangle({0,0,0},{1,0,1},{0,0,1}));
     // mesh_original.triangles.push_back(Triangle({0,0,0},{1,0,0},{1,0,1}));
 
-    // Mesh mesh_original = Mesh(stl_reader::StlMesh<float, unsigned int>("../3d_files/Utah_teapot_(solid).stl"), false);
+    // Mesh mesh_original = Mesh(stl_reader::StlMesh<float, unsigned int>("../../../3d_files/Utah_teapot_(solid).stl"), false);
     Mesh mesh_original = Mesh(stl_reader::StlMesh<float, unsigned int>("../../../3d_files/cat.stl"), false);
     // std::vector<Triangle> triangles = {Triangle({0,0,0}, {1,0,1}, {0,0,1})};
     // Mesh mesh = Mesh();
@@ -240,7 +274,7 @@ int main(int argc, char** argv){
     Camera camera(1600, 900, 0.785398163f*2.0f);
 
     cv::Mat image = cv::Mat::zeros(camera.height, camera.width, CV_8UC3);
-    camera.position = {0,-75,15};
+    camera.position = {0,-5,0.5};
     camera.orientation << 1, 0, 0,
                         0, 0, 1,
                         0, -1, 0;
@@ -257,8 +291,6 @@ int main(int argc, char** argv){
         Eigen::AngleAxisf rotation = Eigen::AngleAxisf(time_sec, Eigen::Vector3f::UnitZ());
         mesh.transform(rotation.matrix());
 
-        
-
         render_mesh(image, mesh, camera, {0,1,-1});
         cv::imshow("Aaa", image);
         int key = cv::pollKey();
@@ -271,7 +303,7 @@ int main(int argc, char** argv){
         if(key == 'q'){
             break;
         }
-        float speed = 45.0f;
+        float speed = 5.0f;
         if(key == 'w'){
             camera.position += Eigen::Vector3f::UnitY()*speed*dt;
         }

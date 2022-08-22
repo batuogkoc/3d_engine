@@ -6,26 +6,27 @@
 class Triangle{
     public:
         Eigen::Vector3f v[3];
-        cv::Scalar color;
-        Triangle(cv::Scalar color=cv::Scalar(255,255,255)){
+        Eigen::Vector2f tex[3];
+        cv::Vec3b color;
+        Triangle(cv::Vec3b color=cv::Vec3b(255,255,255)){
             v[0] = Eigen::Vector3f::Zero();
             v[1] = Eigen::Vector3f::Zero();
             v[2] = Eigen::Vector3f::Zero();
             this->color = color; 
         } 
-        Triangle(Eigen::Vector3f (&vertices)[3], cv::Scalar color=cv::Scalar(255,255,255)){
+        Triangle(Eigen::Vector3f (&vertices)[3], cv::Vec3b color=cv::Vec3b(255,255,255)){
             v[0] = vertices[0];
             v[1] = vertices[1];
             v[2] = vertices[2];
             this->color = color; 
         }
-        Triangle(std::vector<Eigen::Vector3f> vertices, cv::Scalar color=cv::Scalar(255,255,255)){
+        Triangle(std::vector<Eigen::Vector3f> vertices, cv::Vec3b color=cv::Vec3b(255,255,255)){
             v[0] = vertices[0];
             v[1] = vertices[1];
             v[2] = vertices[2];
             this->color = color; 
         }
-        Triangle(Eigen::Vector3f vertex0, Eigen::Vector3f vertex1, Eigen::Vector3f vertex2, cv::Scalar color=cv::Scalar(255,255,255)){
+        Triangle(Eigen::Vector3f vertex0, Eigen::Vector3f vertex1, Eigen::Vector3f vertex2, cv::Vec3b color=cv::Vec3b(255,255,255)){
             v[0] = vertex0;
             v[1] = vertex1;
             v[2] = vertex2;

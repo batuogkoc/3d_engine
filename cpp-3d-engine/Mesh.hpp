@@ -1,12 +1,14 @@
 #include <vector>
 #include "external/stl_reader/stl_reader.h"
 #include "Triangle.hpp"
+#include "Texture.hpp"
 #include "eigen3/Eigen/Dense"
 #include "opencv2/opencv.hpp"
 
 class Mesh{
     public:
         std::vector<Triangle> triangles;
+        Texture texture;
         Mesh(){};
         Mesh(stl_reader::StlMesh<float, unsigned int> mesh, bool random_color = false){
             for(size_t itri=0; itri<mesh.num_tris(); itri++){
