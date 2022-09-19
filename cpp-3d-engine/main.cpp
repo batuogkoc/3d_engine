@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <iostream>
+#include <string>
+#include <sstream>
 #include "external/stl_reader/stl_reader.h"
 #include "opencv2/opencv.hpp"
 #include "eigen3/Eigen/Dense"
@@ -255,14 +257,15 @@ int main(int argc, char** argv){
     // mesh_original.triangles.push_back(Triangle({0,0,0},{1,0,0},{1,0,1}));
 
     // Mesh mesh_original = Mesh(stl_reader::StlMesh<float, unsigned int>("../../../3d_files/Utah_teapot_(solid).stl"), false);
-    Mesh mesh_original = Mesh(stl_reader::StlMesh<float, unsigned int>("../../../3d_files/cat.stl"));
+    // Mesh mesh_original = Mesh(stl_reader::StlMesh<float, unsigned int>("../../../3d_files/cat.stl"));
+    Mesh mesh_original = Mesh::fromOBJ(std::filesystem::path("../../../3d_files/cat_obj/12221_Cat_v1_l3.obj")).value_or(Mesh());
     // std::vector<Triangle> triangles = {Triangle({0,0,0}, {1,0,1}, {0,0,1})};
     // Mesh mesh = Mesh();
     // mesh.triangles = triangles;
     Camera camera(1600, 900, 0.785398163f*2.0f);
 
     cv::Mat image = cv::Mat::zeros(camera.height, camera.width, CV_8UC3);
-    camera.position = {0,-5,0.5};
+    camera.position = {0,-75,15};
     camera.orientation << 1, 0, 0,
                         0, 0, 1,
                         0, -1, 0;
@@ -304,53 +307,10 @@ int main(int argc, char** argv){
         else if (key == 'd'){
             camera.position += Eigen::Vector3f::UnitX()*speed*dt;
         }
-
-                
+   
         std::cout << "------------------\n";
         std::cout << "dt: " << dt << "\n";
         std::cout << "FPS: " << 1/dt << "\n";
-
-        // auto t = Triangle({100,50,0},{50,100,0},{200,150,0});
-        // static auto t = Triangle({100,50,0},{100,150,0},{50,200,0});
-        // static int idx = 0;
-        // if(key == '1'){
-        //     idx = 0;
-        // }
-        // if(key == '2'){
-        //     idx = 1;
-        // }
-        // if(key == '3'){
-        //     idx = 2;
-        // }
-        // if(key == 'w'){
-        //     t.v[idx] -= Eigen::Vector3f::UnitY()*speed*dt;
-        // }
-        // else if (key == 's'){
-        //     t.v[idx] += Eigen::Vector3f::UnitY()*speed*dt;
-        // }
-        // else if (key == 'a'){
-        //     t.v[idx] -= Eigen::Vector3f::UnitX()*speed*dt;
-        // }
-        // else if (key == 'd'){
-        //     t.v[idx] += Eigen::Vector3f::UnitX()*speed*dt;
-        // }
-        // image.setTo(cv::Scalar::zeros());
-        // draw_triangle(image, t);
-        // cv::imshow("Aaa", image);
-
-
-        // std::vector<Plane> planes;
-        // planes.push_back(Plane({0,0,1}, {0,0,1}));
-        // planes.push_back(Plane({0,0,-1}, {0,0,2}));
-
-        // auto result = clip_triangle_on_planes(t, planes);
-        // for(int i=0; i<result.size(); i++){
-        //     std::cout<< "Triangle number "<< i <<":\n";
-        //     for(int j=0; j<3; j++){
-        //         std::cout<<"vertex " <<j<< ":\n";
-        //         std::cout<<result[i].v[j]<<"\n";
-        //     }
-        // }
     }
     cv::destroyAllWindows();
     return 0;
