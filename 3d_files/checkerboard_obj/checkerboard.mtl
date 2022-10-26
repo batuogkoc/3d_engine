@@ -1,0 +1,7 @@
+newmtl checkerboard
+	Ka 1.0000 1.0000 1.0000
+	Kd 1.0000 1.0000 1.0000
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka checkerboard_texture.png
+	map_Kd checkerboard_texture.png

@@ -188,7 +188,7 @@ void render_mesh(cv::Mat& image, Mesh& mesh, Camera& camera, Eigen::Vector3f lig
     
     Mesh to_draw = Mesh();
     std::vector<Plane> planes;
-    float near_clipping = 1;
+    float near_clipping = 0.1;
     float far_clipping = 1000;
     planes.push_back(Plane({0,0,1}, {0,0,near_clipping}));
     planes.push_back(Plane({0,0,-1}, {0,0,far_clipping}));
@@ -280,8 +280,18 @@ void render_mesh(cv::Mat& image, Mesh& mesh, Camera& camera, Eigen::Vector3f lig
                 float v0_w = v0_v1_barycentric[0];
                 float v1_w = v0_v1_barycentric[1];
                 float v2_w = 1-v0_w-v1_w;
+                
+                // Eigen::Vector2f affine_mapped_coords = (triangle.tex[0]*v0_w + triangle.tex[1]*v1_w + triangle.tex[2]*v2_w);
+                
+                // triangle.tex[0] *=vertex_0_z_inv;
+                // triangle.tex[1] *=vertex_1_z_inv;
+                // triangle.tex[2] *=vertex_2_z_inv;
 
-                image.at<cv::Vec3b>(i,j) = mesh.texture.get_pixel(triangle.tex[0]*v0_w + triangle.tex[1]*v1_w + triangle.tex[2]*v2_w);
+                float current_pixel_z_inv = 1/z0*v0_w + 1/z1*v1_w + 1/z2*v2_w;
+
+                Eigen::Vector2f perspective_corrected_coords = (triangle.tex[0]*1/z0*v0_w + triangle.tex[1]*1/z1*v1_w + triangle.tex[2]*1/z2*v2_w)/current_pixel_z_inv;
+                
+                image.at<cv::Vec3b>(i,j) = mesh.texture.get_pixel(perspective_corrected_coords);
                 // cv::Vec3b vertex_0_color = texture.at<cv::Vec3b>(triangle.tex[0][1], triangle.tex[0][0]);
                 // cv::Vec3b vertex_1_color = texture.at<cv::Vec3b>(triangle.tex[1][1], triangle.tex[1][0]);
                 // cv::Vec3b vertex_2_color = texture.at<cv::Vec3b>(triangle.tex[2][1], triangle.tex[2][0]);
@@ -313,8 +323,18 @@ void render_mesh(cv::Mat& image, Mesh& mesh, Camera& camera, Eigen::Vector3f lig
                 float v0_w = v0_v1_barycentric[0];
                 float v1_w = v0_v1_barycentric[1];
                 float v2_w = 1-v0_w-v1_w;
+                
+                // Eigen::Vector2f affine_mapped_coords = (triangle.tex[0]*v0_w + triangle.tex[1]*v1_w + triangle.tex[2]*v2_w);
+                
+                // triangle.tex[0] *=vertex_0_z_inv;
+                // triangle.tex[1] *=vertex_1_z_inv;
+                // triangle.tex[2] *=vertex_2_z_inv;
 
-                image.at<cv::Vec3b>(i,j) = mesh.texture.get_pixel(triangle.tex[0]*v0_w + triangle.tex[1]*v1_w + triangle.tex[2]*v2_w);
+                float current_pixel_z_inv = 1/z0*v0_w + 1/z1*v1_w + 1/z2*v2_w;
+
+                Eigen::Vector2f perspective_corrected_coords = (triangle.tex[0]*1/z0*v0_w + triangle.tex[1]*1/z1*v1_w + triangle.tex[2]*1/z2*v2_w)/current_pixel_z_inv;
+                
+                image.at<cv::Vec3b>(i,j) = mesh.texture.get_pixel(perspective_corrected_coords);
                 // cv::Vec3b vertex_0_color = texture.at<cv::Vec3b>(triangle.tex[0][1], triangle.tex[0][0]);
                 // cv::Vec3b vertex_1_color = texture.at<cv::Vec3b>(triangle.tex[1][1], triangle.tex[1][0]);
                 // cv::Vec3b vertex_2_color = texture.at<cv::Vec3b>(triangle.tex[2][1], triangle.tex[2][0]);
@@ -337,6 +357,10 @@ int main(int argc, char** argv){
     // Mesh mesh_original = Mesh(stl_reader::StlMesh<float, unsigned int>("../../../3d_files/cat.stl"));
     Mesh mesh_original = Mesh::fromOBJ(std::filesystem::path("../../../3d_files/cat_obj/12221_Cat_v1_l3.obj")).value_or(Mesh());
     mesh_original.texture = Texture("../../../3d_files/cat_obj/Cat_diffuse.jpg");
+    // Mesh mesh_original = Mesh::fromOBJ(std::filesystem::path("../../../3d_files/checkerboard_obj/checkerboard.obj")).value_or(Mesh());
+    // mesh_original.texture = Texture("../../../3d_files/checkerboard_obj/checkerboard_texture.png");
+    // mesh_original.texture = Texture("../../../3d_files/checkerboard_obj/mario.jpeg");
+
     // std::vector<Triangle> triangles = {Triangle({0,0,0}, {1,0,1}, {0,0,1})};
     // Mesh mesh = Mesh();
     // mesh.triangles = triangles;
@@ -344,6 +368,7 @@ int main(int argc, char** argv){
 
     cv::Mat image = cv::Mat::zeros(camera.height, camera.width, CV_8UC3);
     camera.position = {0,-75,15};
+    // camera.position = {0,-1,0.5};
     camera.orientation << 1, 0, 0,
                         0, 0, 1,
                         0, -1, 0;
@@ -362,7 +387,7 @@ int main(int argc, char** argv){
 
         render_mesh(image, mesh, camera, {0,1,-1});
         cv::imshow("Aaa", image);
-        cv::imshow("Texture", mesh.texture.get_image());
+        // cv::imshow("Texture", mesh.texture.get_image());
         int key = cv::pollKey();
 
         static auto start = std::chrono::high_resolution_clock::now();
