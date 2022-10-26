@@ -6,7 +6,7 @@ project(Test VERSION 1.0)
 # specify the C++ standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-find_package( OpenCV REQUIRED )
+find_package(OpenCV REQUIRED )
 find_package(Eigen3 REQUIRED)
 
 link_directories(${Eigen_INCLUDE_DIRS})
@@ -17,5 +17,5 @@ target_link_libraries(${PROJECT_NAME}
     ${OpenCV_LIBS}
     ${Eigen_LIBRARIES}
 )
-set(CMAKE_CXX_FLAGS "-O0")
+set(CMAKE_CXX_FLAGS "-O3")
 

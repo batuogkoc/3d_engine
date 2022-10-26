@@ -134,6 +134,7 @@ class Mesh{
             for(auto triangle : this->triangles){
                 ret.triangles.push_back(Triangle(triangle));
             }       
+            ret.texture = texture.copy();
             return ret;
         }
 };

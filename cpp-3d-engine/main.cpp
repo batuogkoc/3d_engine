@@ -12,6 +12,7 @@
 #include "math.h"
 #include "Plane.hpp"
 
+
 void draw_triangle(cv::Mat &image, Texture &texture, Triangle triangle){
     Eigen::Matrix2f barycentric_t_matrix = Eigen::Matrix2f();
     barycentric_t_matrix << triangle.v[0][0] - triangle.v[2][0], triangle.v[1][0] - triangle.v[2][0],
@@ -221,6 +222,7 @@ void render_mesh(cv::Mat& image, Mesh& mesh, Camera& camera, Eigen::Vector3f lig
 
     size_t i=0;
     for(auto triangle:to_draw.triangles){
+        //convert to projective coords
         triangle.v[0][0] /= triangle.v[0][2];
         triangle.v[0][1] /= triangle.v[0][2]; 
 
@@ -230,6 +232,7 @@ void render_mesh(cv::Mat& image, Mesh& mesh, Camera& camera, Eigen::Vector3f lig
         triangle.v[2][0] /= triangle.v[2][2];
         triangle.v[2][1] /= triangle.v[2][2];
 
+        //convert to frame coords
         float scale_factor = camera.perspective_coords_scale_factor;
 
         triangle.v[0][0] = triangle.v[0][0]*scale_factor + camera.width/2;
@@ -241,12 +244,86 @@ void render_mesh(cv::Mat& image, Mesh& mesh, Camera& camera, Eigen::Vector3f lig
         triangle.v[2][0] = triangle.v[2][0]*scale_factor + camera.width/2;
         triangle.v[2][1] = triangle.v[2][1]*scale_factor + camera.height/2;
 
-        // cv::Point points[] = {cv::Point(triangle.v[0][0], triangle.v[0][1]),
-        //                         cv::Point(triangle.v[1][0], triangle.v[1][1]),
-        //                         cv::Point(triangle.v[2][0], triangle.v[2][1])};
+        //draw pixels
+        Eigen::Matrix2f barycentric_t_matrix = Eigen::Matrix2f();
+        barycentric_t_matrix << triangle.v[0][0] - triangle.v[2][0], triangle.v[1][0] - triangle.v[2][0],
+                                triangle.v[0][1] - triangle.v[2][1], triangle.v[1][1] - triangle.v[2][1];
+        Eigen::Matrix2f barycentric_t_matrix_inv = barycentric_t_matrix.inverse();
+        Eigen::Vector2f vertex_2 = Eigen::Vector2f();
+        vertex_2 << triangle.v[2][0], triangle.v[2][1];
+        float z0 = triangle.v[0][2];
+        float z1 = triangle.v[1][2];
+        float z2 = triangle.v[2][2];
+
+        std::sort(triangle.v, triangle.v+3, [](Eigen::Vector3f v1, Eigen::Vector3f v2){
+            return v1[1]<v2[1];
+        });
+        Eigen::Vector3f edge_l = triangle.v[1]-triangle.v[0];
+        Eigen::Vector3f edge_r = triangle.v[2]-triangle.v[0];
         
-        // cv::fillConvexPoly(image, points, 3, triangle.color);
-        draw_triangle(image, mesh.texture, triangle);
+
+        edge_l /= edge_l[1];
+        edge_r /= edge_r[1];
+
+        if(edge_l[0]>edge_r[0]){
+            auto temp = edge_r;
+            edge_r = edge_l;
+            edge_l = temp;
+        }
+
+
+        for(size_t i=std::max((size_t)0, (size_t)triangle.v[0][1]+1); i<=std::min((size_t)image.rows-1, (size_t)triangle.v[1][1]); i++){
+            for(size_t j=std::max((size_t)0, (size_t)(triangle.v[0][0]+edge_l[0]*((float)i-triangle.v[0][1]))+1);j<=std::min((size_t)image.cols-1,(size_t)(triangle.v[0][0]+edge_r[0]*((float)i-triangle.v[0][1]))); j++){
+                Eigen::Vector2f r = Eigen::Vector2f();
+                r << (float)j,(float)i;
+                Eigen::Vector2f v0_v1_barycentric = barycentric_t_matrix_inv*(r-vertex_2);
+                float v0_w = v0_v1_barycentric[0];
+                float v1_w = v0_v1_barycentric[1];
+                float v2_w = 1-v0_w-v1_w;
+
+                image.at<cv::Vec3b>(i,j) = mesh.texture.get_pixel(triangle.tex[0]*v0_w + triangle.tex[1]*v1_w + triangle.tex[2]*v2_w);
+                // cv::Vec3b vertex_0_color = texture.at<cv::Vec3b>(triangle.tex[0][1], triangle.tex[0][0]);
+                // cv::Vec3b vertex_1_color = texture.at<cv::Vec3b>(triangle.tex[1][1], triangle.tex[1][0]);
+                // cv::Vec3b vertex_2_color = texture.at<cv::Vec3b>(triangle.tex[2][1], triangle.tex[2][0]);
+                // image.at<cv::Vec3b>(i,j) = vertex_0_color*v0_w + vertex_1_color*v1_w + vertex_2_color*v2_w;
+                // image.at<cv::Vec3b>(i,j)[0] = (uint8_t)255*v0_w;
+                // image.at<cv::Vec3b>(i,j)[1] = (uint8_t)255*v1_w;
+                // image.at<cv::Vec3b>(i,j)[2] = (uint8_t)255*v2_w;
+            }
+        }
+
+        edge_l = triangle.v[0]-triangle.v[2];
+        edge_r = triangle.v[1]-triangle.v[2];
+        
+
+        edge_l /= -edge_l[1];
+        edge_r /= -edge_r[1];
+
+        if(edge_l[0]>edge_r[0]){
+            auto temp = edge_r;
+            edge_r = edge_l;
+            edge_l = temp;
+        }
+
+        for(size_t i=std::min((size_t)image.rows-1,(size_t)triangle.v[2][1]); i>std::max((size_t)0, (size_t)triangle.v[1][1]); i--){
+            for(size_t j=std::max((size_t)0,(size_t)(triangle.v[2][0]+edge_l[0]*(triangle.v[2][1]-(float)i))+1);j<=std::min((size_t)image.cols-1,(size_t)(triangle.v[2][0]+edge_r[0]*(triangle.v[2][1]-(float)i))); j++){
+                Eigen::Vector2f r = Eigen::Vector2f();
+                r << (float)j,(float)i;
+                Eigen::Vector2f v0_v1_barycentric = barycentric_t_matrix_inv*(r-vertex_2);
+                float v0_w = v0_v1_barycentric[0];
+                float v1_w = v0_v1_barycentric[1];
+                float v2_w = 1-v0_w-v1_w;
+
+                image.at<cv::Vec3b>(i,j) = mesh.texture.get_pixel(triangle.tex[0]*v0_w + triangle.tex[1]*v1_w + triangle.tex[2]*v2_w);
+                // cv::Vec3b vertex_0_color = texture.at<cv::Vec3b>(triangle.tex[0][1], triangle.tex[0][0]);
+                // cv::Vec3b vertex_1_color = texture.at<cv::Vec3b>(triangle.tex[1][1], triangle.tex[1][0]);
+                // cv::Vec3b vertex_2_color = texture.at<cv::Vec3b>(triangle.tex[2][1], triangle.tex[2][0]);
+                // image.at<cv::Vec3b>(i,j) = vertex_0_color*v0_w + vertex_1_color*v1_w + vertex_2_color*v2_w;
+                // image.at<cv::Vec3b>(i,j)[0] = (uint8_t)255*v0_w;
+                // image.at<cv::Vec3b>(i,j)[1] = (uint8_t)255*v1_w;
+                // image.at<cv::Vec3b>(i,j)[2] = (uint8_t)255*v2_w;
+            }
+        }
     }
 }
 
@@ -259,6 +336,7 @@ int main(int argc, char** argv){
     // Mesh mesh_original = Mesh(stl_reader::StlMesh<float, unsigned int>("../../../3d_files/Utah_teapot_(solid).stl"), false);
     // Mesh mesh_original = Mesh(stl_reader::StlMesh<float, unsigned int>("../../../3d_files/cat.stl"));
     Mesh mesh_original = Mesh::fromOBJ(std::filesystem::path("../../../3d_files/cat_obj/12221_Cat_v1_l3.obj")).value_or(Mesh());
+    mesh_original.texture = Texture("../../../3d_files/cat_obj/Cat_diffuse.jpg");
     // std::vector<Triangle> triangles = {Triangle({0,0,0}, {1,0,1}, {0,0,1})};
     // Mesh mesh = Mesh();
     // mesh.triangles = triangles;
@@ -284,6 +362,7 @@ int main(int argc, char** argv){
 
         render_mesh(image, mesh, camera, {0,1,-1});
         cv::imshow("Aaa", image);
+        cv::imshow("Texture", mesh.texture.get_image());
         int key = cv::pollKey();
 
         static auto start = std::chrono::high_resolution_clock::now();
@@ -294,7 +373,7 @@ int main(int argc, char** argv){
         if(key == 'q'){
             break;
         }
-        float speed = 5.0f;
+        float speed = 15.0f;
         if(key == 'w'){
             camera.position += Eigen::Vector3f::UnitY()*speed*dt;
         }
