@@ -179,7 +179,7 @@ std::deque<Triangle> clip_triangle_on_planes(Triangle const &triangle, std::vect
     return ret;
 }
 
-void render_mesh(cv::Mat& image, Mesh& mesh, Camera& camera, Eigen::Vector3f light_direction){
+void render_mesh(cv::Mat& image, cv::Mat& depth_map, Mesh& mesh, Camera& camera, Eigen::Vector3f light_direction){
     light_direction.normalize();
     Mesh mesh_copy = mesh.copy();
     image.setTo(cv::Scalar::zeros());
@@ -216,11 +216,6 @@ void render_mesh(cv::Mat& image, Mesh& mesh, Camera& camera, Eigen::Vector3f lig
         // to_draw.triangles.push_back(triangle);
     }
 
-    std::sort(to_draw.triangles.begin(), to_draw.triangles.end(), [](Triangle t1, Triangle t2){
-        return t1.center()[2]>t2.center()[2];
-    });
-
-    size_t i=0;
     for(auto triangle:to_draw.triangles){
         //convert to projective coords
         triangle.v[0][0] /= triangle.v[0][2];
@@ -280,25 +275,16 @@ void render_mesh(cv::Mat& image, Mesh& mesh, Camera& camera, Eigen::Vector3f lig
                 float v0_w = v0_v1_barycentric[0];
                 float v1_w = v0_v1_barycentric[1];
                 float v2_w = 1-v0_w-v1_w;
-                
-                // Eigen::Vector2f affine_mapped_coords = (triangle.tex[0]*v0_w + triangle.tex[1]*v1_w + triangle.tex[2]*v2_w);
-                
-                // triangle.tex[0] *=vertex_0_z_inv;
-                // triangle.tex[1] *=vertex_1_z_inv;
-                // triangle.tex[2] *=vertex_2_z_inv;
 
                 float current_pixel_z_inv = 1/z0*v0_w + 1/z1*v1_w + 1/z2*v2_w;
 
-                Eigen::Vector2f perspective_corrected_coords = (triangle.tex[0]*1/z0*v0_w + triangle.tex[1]*1/z1*v1_w + triangle.tex[2]*1/z2*v2_w)/current_pixel_z_inv;
+                float* current_pixel_depth = ((float*)depth_map.ptr(i, j));
+                if(*current_pixel_depth<current_pixel_z_inv){
+                    Eigen::Vector2f perspective_corrected_coords = (triangle.tex[0]*1/z0*v0_w + triangle.tex[1]*1/z1*v1_w + triangle.tex[2]*1/z2*v2_w)/current_pixel_z_inv;
                 
-                image.at<cv::Vec3b>(i,j) = mesh.texture.get_pixel(perspective_corrected_coords);
-                // cv::Vec3b vertex_0_color = texture.at<cv::Vec3b>(triangle.tex[0][1], triangle.tex[0][0]);
-                // cv::Vec3b vertex_1_color = texture.at<cv::Vec3b>(triangle.tex[1][1], triangle.tex[1][0]);
-                // cv::Vec3b vertex_2_color = texture.at<cv::Vec3b>(triangle.tex[2][1], triangle.tex[2][0]);
-                // image.at<cv::Vec3b>(i,j) = vertex_0_color*v0_w + vertex_1_color*v1_w + vertex_2_color*v2_w;
-                // image.at<cv::Vec3b>(i,j)[0] = (uint8_t)255*v0_w;
-                // image.at<cv::Vec3b>(i,j)[1] = (uint8_t)255*v1_w;
-                // image.at<cv::Vec3b>(i,j)[2] = (uint8_t)255*v2_w;
+                    image.at<cv::Vec3b>(i,j) = mesh.texture.get_pixel(perspective_corrected_coords);
+                    *current_pixel_depth = current_pixel_z_inv;
+                }                                
             }
         }
 
@@ -323,25 +309,16 @@ void render_mesh(cv::Mat& image, Mesh& mesh, Camera& camera, Eigen::Vector3f lig
                 float v0_w = v0_v1_barycentric[0];
                 float v1_w = v0_v1_barycentric[1];
                 float v2_w = 1-v0_w-v1_w;
-                
-                // Eigen::Vector2f affine_mapped_coords = (triangle.tex[0]*v0_w + triangle.tex[1]*v1_w + triangle.tex[2]*v2_w);
-                
-                // triangle.tex[0] *=vertex_0_z_inv;
-                // triangle.tex[1] *=vertex_1_z_inv;
-                // triangle.tex[2] *=vertex_2_z_inv;
 
                 float current_pixel_z_inv = 1/z0*v0_w + 1/z1*v1_w + 1/z2*v2_w;
 
-                Eigen::Vector2f perspective_corrected_coords = (triangle.tex[0]*1/z0*v0_w + triangle.tex[1]*1/z1*v1_w + triangle.tex[2]*1/z2*v2_w)/current_pixel_z_inv;
+                float* current_pixel_depth = ((float*)depth_map.ptr(i, j));
+                if(*current_pixel_depth<current_pixel_z_inv){
+                    Eigen::Vector2f perspective_corrected_coords = (triangle.tex[0]*1/z0*v0_w + triangle.tex[1]*1/z1*v1_w + triangle.tex[2]*1/z2*v2_w)/current_pixel_z_inv;
                 
-                image.at<cv::Vec3b>(i,j) = mesh.texture.get_pixel(perspective_corrected_coords);
-                // cv::Vec3b vertex_0_color = texture.at<cv::Vec3b>(triangle.tex[0][1], triangle.tex[0][0]);
-                // cv::Vec3b vertex_1_color = texture.at<cv::Vec3b>(triangle.tex[1][1], triangle.tex[1][0]);
-                // cv::Vec3b vertex_2_color = texture.at<cv::Vec3b>(triangle.tex[2][1], triangle.tex[2][0]);
-                // image.at<cv::Vec3b>(i,j) = vertex_0_color*v0_w + vertex_1_color*v1_w + vertex_2_color*v2_w;
-                // image.at<cv::Vec3b>(i,j)[0] = (uint8_t)255*v0_w;
-                // image.at<cv::Vec3b>(i,j)[1] = (uint8_t)255*v1_w;
-                // image.at<cv::Vec3b>(i,j)[2] = (uint8_t)255*v2_w;
+                    image.at<cv::Vec3b>(i,j) = mesh.texture.get_pixel(perspective_corrected_coords);
+                    *current_pixel_depth = current_pixel_z_inv;
+                }      
             }
         }
     }
@@ -367,6 +344,7 @@ int main(int argc, char** argv){
     Camera camera(1600, 900, 0.785398163f*2.0f);
 
     cv::Mat image = cv::Mat::zeros(camera.height, camera.width, CV_8UC3);
+    cv::Mat depth_map = cv::Mat::zeros(camera.height, camera.width, CV_32FC1);
     camera.position = {0,-75,15};
     // camera.position = {0,-1,0.5};
     camera.orientation << 1, 0, 0,
@@ -375,7 +353,7 @@ int main(int argc, char** argv){
     while(true){
         Mesh mesh = mesh_original.copy();
         image.setTo(cv::Scalar::zeros());
-        
+        depth_map.setTo(cv::Scalar::zeros());
         double time_sec = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now()-program_start).count() * 1e-9;
 
         // Eigen::AngleAxisf rotation(time_sec, Eigen::Vector3f::UnitX());
@@ -385,8 +363,8 @@ int main(int argc, char** argv){
         Eigen::AngleAxisf rotation = Eigen::AngleAxisf(time_sec, Eigen::Vector3f::UnitZ());
         mesh.transform(rotation.matrix());
 
-        render_mesh(image, mesh, camera, {0,1,-1});
-        cv::imshow("Aaa", image);
+        render_mesh(image,depth_map, mesh, camera, {0,1,-1});
+        cv::imshow("Image", image);
         // cv::imshow("Texture", mesh.texture.get_image());
         int key = cv::pollKey();
 
